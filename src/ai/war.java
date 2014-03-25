@@ -31,10 +31,6 @@ public class war {
 	protected static String outputFile = null;
 	protected static String outputLog = null;
 
-	private static class node {
-		Hashtable<String, Integer> config = new Hashtable<String, Integer>();
-	}
-
 	public static void main(String[] args) {
 
 		String initConfig = null;
@@ -129,68 +125,47 @@ public class war {
 	}
 
 	private static int getForceMarchVal(String city, int player) {
-		
+
 		TreeMap<String, Integer> localConfig = new TreeMap<String, Integer>();
 		copyTo(localConfig);
 		ArrayList<String> nbrs = allEdges.get(city);
 		String fromCity = null;
 		LinkedList<String> q = new LinkedList<String>();
 		ArrayList<String> visited = new ArrayList<String>();
-		//any nbr has our city occupied?
-		for(String nbr : nbrs){
-			if(localConfig.get(nbr) == player){
+		// any nbr has our city occupied?
+		for (String nbr : nbrs) {
+			if (localConfig.get(nbr) == player) {
 				fromCity = nbr;
 				break;
 			}
 		}
-		
-		if(fromCity != null){
+
+		if (fromCity != null) {
 			localConfig.put(city, player);
 			q.add(city);
 			visited.add(city);
-			
-			String cur = null;
+
 			nbrs = allEdges.get(city);
 			for (String nbr : nbrs) {
-					q.add(nbr);
-			}
-			while (!q.isEmpty()) {
-				cur = q.remove();
-				visited.add(cur);
-				if (localConfig.get(cur) == player * -1) {
-					localConfig.put(cur, player);
-					for (String nbr : allEdges.get(cur)) {
-							q.add(nbr);
-					}
+				if (localConfig.get(nbr) == player * -1) {
+					localConfig.put(nbr, player);
 				}
-		}
-		return eval(localConfig, player);
-		}else{
-			if(player > 0){
-				return 0;
-			}else{
-				return -Integer.MAX_VALUE;
 			}
+			return eval(localConfig, player);
+		} else {
+				return -Integer.MAX_VALUE;
 		}
 	}
 
 	private static void doForceMarch(String source, int player) {
 		
-		ArrayList<String> nbrs = null;
-		LinkedList<String> q = new LinkedList<String>();
-		q.add(source);
-		String cur = null;
-
+		ArrayList<String> nbrs = allEdges.get(source);
 		currentConfig.put(source, player);
-		while (!q.isEmpty()) {
-			cur = q.remove();
-			nbrs = allEdges.get(cur);
-			for (String nbr : nbrs) {
-				if (currentConfig.get(nbr) == -1 * player) {
-					// occupy only when the city is on the other side
-					currentConfig.put(nbr, player);
-					q.add(nbr);
-				}
+		
+		for (String nbr : nbrs) {
+			if (currentConfig.get(nbr) == -1 * player) {
+				// occupy only when the city is on the other side
+				currentConfig.put(nbr, player);
 			}
 		}
 	}
@@ -233,14 +208,11 @@ public class war {
 		System.out.println("Player = N/A");
 		System.out.println("Action = " + action);
 		System.out.println("Destination = N/A");
-		System.out.println("Union, " + getCities(UNION) +", "+ getStrength(initialConfig, UNION));
-		System.out.println("Confederacy, " + getCities(CONFEDERACY) +", "+ getStrength(initialConfig, CONFEDERACY));
+		System.out.println("Union, " + getCities(UNION) +","+ getStrength(initialConfig, UNION));
+		System.out.println("Confederacy, " + getCities(CONFEDERACY) +","+ getStrength(initialConfig, CONFEDERACY));
 		System.out.println("----------------------------------------------");
 		while (!isGameEnd()) { //TODO: tie-breaking rules
-			max = 0;
-			if(player < 0){
-				max = -Integer.MAX_VALUE;
-			}
+			max = -Integer.MAX_VALUE;
 			nextCity = null;
 			String city = null;
 			boolean isFM = false;
@@ -249,7 +221,7 @@ public class war {
 				if (e.getValue() == 0) {
 					city = e.getKey();
 					val = getForceMarchVal(city, player);
-					if (max <= val) {
+					if (max < val) {
 						max = val;
 						isFM = true;
 						nextCity = city;
@@ -280,8 +252,8 @@ public class war {
 			System.out.println("Player = " + getPlayerName(player));
 			System.out.println("Action = " + action);
 			System.out.println("Destination = "+ nextCity);
-			System.out.println("Union, " + getCities(1) +", "+ getStrength(currentConfig, UNION));
-			System.out.println("Confederacy, " + getCities(-1) +", "+ getStrength(currentConfig, CONFEDERACY));
+			System.out.println("Union, " + getCities(1) +","+ getStrength(currentConfig, UNION));
+			System.out.println("Confederacy, " + getCities(-1) +","+ getStrength(currentConfig, CONFEDERACY));
 			System.out.println("----------------------------------------------");
 			player *= -1;
 			turn++;
