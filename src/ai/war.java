@@ -30,17 +30,21 @@ public class war {
 	protected static Hashtable<String, ArrayList<String>> allEdges = new Hashtable<String, ArrayList<String>>();
 	protected static String outputFile = null;
 	protected static String outputLog = null;
-
+	public static int CUTOFF = 3; 
 	public static void main(String[] args) {
 
 		String initConfig = null;
 		String inputFile = null;
 
 		int taskNumber = 0;
-
+		
+		
 		for (int i = 0; i < args.length; i++) {
 			if (args[i].equals("-t")) {
 				taskNumber = Integer.parseInt(args[i + 1]);
+			}
+			if (args[i].equals("-d")) {
+				CUTOFF = Integer.parseInt(args[i + 1]);
 			}
 			if (args[i].equals("-i")) {
 				initConfig = args[i + 1];
@@ -114,10 +118,6 @@ public class war {
 
 	}
 
-	private static boolean canOccupy(Hashtable<String, Integer> currentConfig) {
-		return false;
-	}
-
 	private static void copyTo(TreeMap<String, Integer> localConfig) {
 		for (Entry<String, Integer> e : currentConfig.entrySet()) {
 			localConfig.put(e.getKey(), e.getValue());
@@ -157,21 +157,25 @@ public class war {
 		}
 	}
 
-	private static void doForceMarch(String source, int player) {
+	private static boolean doForceMarch(TreeMap<String, Integer> config,
+			String source, int player) {
 		
 		ArrayList<String> nbrs = allEdges.get(source);
-		currentConfig.put(source, player);
-		
+		config.put(source, player);
+		boolean isForceMarchPossible = false;
 		for (String nbr : nbrs) {
-			if (currentConfig.get(nbr) == -1 * player) {
+			if (config.get(nbr) == -1 * player) {
 				// occupy only when the city is on the other side
-				currentConfig.put(nbr, player);
+				config.put(nbr, player);
+				isForceMarchPossible = true;
 			}
 		}
+		
+		return isForceMarchPossible;
 	}
 	
-	private static boolean isGameEnd(){
-		for(Integer i : currentConfig.values()){
+	private static boolean isGameEnd(TreeMap<String, Integer> config){
+		for(Integer i : config.values()){
 			if(i == 0){
 				return false;
 			}
@@ -211,7 +215,7 @@ public class war {
 		System.out.println("Union, " + getCities(UNION) +","+ getStrength(initialConfig, UNION));
 		System.out.println("Confederacy, " + getCities(CONFEDERACY) +","+ getStrength(initialConfig, CONFEDERACY));
 		System.out.println("----------------------------------------------");
-		while (!isGameEnd()) { //TODO: tie-breaking rules
+		while (!isGameEnd(currentConfig)) { //TODO: tie-breaking rules
 			max = -Integer.MAX_VALUE;
 			nextCity = null;
 			String city = null;
@@ -244,7 +248,7 @@ public class war {
 				currentConfig.put(nextCity, player);
 				action = "Paratroop Drop";
 			} else {
-				doForceMarch(nextCity, player);
+				doForceMarch(currentConfig, nextCity, player);
 				action = "Force March";
 			}
 			
@@ -270,10 +274,116 @@ public class war {
 		
 		return val;
 	}
-	public static void minimaxAlgo() {
 
+	private static class Node {
+		TreeMap<String, Integer> config;
+		int minimax_value  = 0;
+		int turn = 0;
+				
+		public Node(TreeMap<String, Integer> config, int minimax_value, int turn) {
+			this.config = config;
+			this.minimax_value = minimax_value;
+			this.turn = turn;
+		}
+	}
+	
+	public static void minimaxAlgo() {
+		MINIMAX_DECISION();
 	}
 
+	public static ArrayList<Node> getAllNextNodes(Node currentNode){
+
+		ArrayList<Node> allNextNodes = new ArrayList<Node>();
+		String currentCity = null;
+		int currentVal = 0;
+		TreeMap<String, Integer> localConfig = null;
+		boolean isForceMarchPossible = false;
+		Node node = null;
+		for (Entry<String, Integer> e : currentConfig.entrySet()) {
+			if (e.getValue() == 0) {
+				
+				currentCity = e.getKey();
+				localConfig = new TreeMap<String, Integer>();
+				copyTo(localConfig);
+				isForceMarchPossible = doForceMarch(localConfig, currentCity, currentNode.turn);
+				if(isForceMarchPossible){
+					currentVal = getForceMarchVal(currentCity, currentNode.turn);
+					node = new Node(localConfig, currentVal, currentNode.turn); //TODO: currentNode.turn might be wrong
+					allNextNodes.add(node);
+				}
+				//Paratroop drop cases;
+				localConfig = new TreeMap<String, Integer>();
+				copyTo(localConfig);
+				localConfig.put(currentCity, currentNode.turn);
+				currentVal = eval(currentConfig, currentNode.turn);
+				node = new Node(localConfig, currentVal, currentNode.turn); //TODO: currentNode.turn might be wrong
+				allNextNodes.add(node);
+			} 
+
+		}
+		
+		return allNextNodes;
+	}
+
+	
+	public static int currentDepth = 1;
+
+	public static Node MINIMAX_DECISION(){
+		
+		Node nextMove = null;
+		int maxUtility = -1; 
+		int currentUtility = 0;
+		int player = 1;
+		String action = "N/A";
+		
+		Node startState = new Node(initialConfig, 0, player);
+		System.out.println("TURN = " + 0);
+		System.out.println("Player = N/A");
+		System.out.println("Action = " + action);
+		System.out.println("Destination = N/A");
+		System.out.println("Union, " + getCities(UNION) +","+ getStrength(initialConfig, UNION));
+		System.out.println("Confederacy, " + getCities(CONFEDERACY) +","+ getStrength(initialConfig, CONFEDERACY));
+		System.out.println("----------------------------------------------");
+		
+		for(Node op : getAllNextNodes(startState)){
+			currentUtility = MINIMAX_VALUE(op, 1);
+			if(maxUtility < currentUtility){
+				nextMove = op;
+				maxUtility = currentUtility;
+			}
+		}
+		return nextMove;
+	}
+	private static boolean isTerminal(Node state){
+		return isGameEnd(state.config);
+	}
+	public static int MINIMAX_VALUE(Node state, int player){
+		
+		int currentVal = 0;
+		if(isTerminal(state) || currentDepth == CUTOFF){
+			return eval(state.config, player);
+		}else if(player == 1){
+			int max = -1;
+			for(Node successor : getAllNextNodes(state)){
+				currentVal = MINIMAX_VALUE(successor, -1*player);
+				if(max < currentVal){
+					max = currentVal;
+				}
+			}
+			currentDepth++;
+			return max;
+		}else{
+			int min = -1;
+			for(Node successor : getAllNextNodes(state)){
+				currentVal = MINIMAX_VALUE(successor, -1*player);
+				if(min > currentVal){
+					min = currentVal;
+				}
+			}
+			currentDepth++;
+			return min;
+		}
+	}
 	public static void alphaBetaAlgo() {
 
 	}
