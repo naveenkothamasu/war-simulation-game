@@ -182,14 +182,14 @@ public class war {
 		}
 		return true;
 	}
-	private static String getCities(int player){
+	private static String getCities(TreeMap<String, Integer> config, int player){
 		StringBuilder res = new StringBuilder("{");
 		SortedSet<String> sortedSet = new TreeSet<String>();
-		for(Entry<String, Integer> e : currentConfig.entrySet()){
+		for(Entry<String, Integer> e : config.entrySet()){
 			sortedSet.add(e.getKey());
 		}
 		for(String s : sortedSet){
-			if(currentConfig.get(s) == player){
+			if(config.get(s) == player){
 				res.append(s).append(","); 
 			}	
 		}
@@ -212,8 +212,8 @@ public class war {
 		System.out.println("Player = N/A");
 		System.out.println("Action = " + action);
 		System.out.println("Destination = N/A");
-		System.out.println("Union, " + getCities(UNION) +","+ getStrength(initialConfig, UNION));
-		System.out.println("Confederacy, " + getCities(CONFEDERACY) +","+ getStrength(initialConfig, CONFEDERACY));
+		System.out.println("Union, " + getCities(currentConfig, UNION) +","+ getStrength(initialConfig, UNION));
+		System.out.println("Confederacy, " + getCities(currentConfig, CONFEDERACY) +","+ getStrength(initialConfig, CONFEDERACY));
 		System.out.println("----------------------------------------------");
 		while (!isGameEnd(currentConfig)) { //TODO: tie-breaking rules
 			max = -Integer.MAX_VALUE;
@@ -256,8 +256,8 @@ public class war {
 			System.out.println("Player = " + getPlayerName(player));
 			System.out.println("Action = " + action);
 			System.out.println("Destination = "+ nextCity);
-			System.out.println("Union, " + getCities(1) +","+ getStrength(currentConfig, UNION));
-			System.out.println("Confederacy, " + getCities(-1) +","+ getStrength(currentConfig, CONFEDERACY));
+			System.out.println("Union, " + getCities(currentConfig, 1) +","+ getStrength(currentConfig, UNION));
+			System.out.println("Confederacy, " + getCities(currentConfig, -1) +","+ getStrength(currentConfig, CONFEDERACY));
 			System.out.println("----------------------------------------------");
 			player *= -1;
 			turn++;
@@ -277,17 +277,17 @@ public class war {
 
 	private static class Node {
 		TreeMap<String, Integer> config;
-		int minimax_value  = 0;
-		int turn = 0;
+		String minimax_value  = "Infinity";
 		String caused_action = null;
 		String city = null;
+		int depth = 0;
 				
-		public Node(TreeMap<String, Integer> config, int minimax_value, int turn, String caused_action, String city) {
+		public Node(TreeMap<String, Integer> config, String minimax_value, String caused_action, String city, int depth) {
 			this.config = config;
 			this.minimax_value = minimax_value;
-			this.turn = turn;
 			this.caused_action = caused_action;
 			this.city = city;
+			this.depth = depth;
 		}
 	}
 	
@@ -295,66 +295,133 @@ public class war {
 		MINIMAX_DECISION();
 	}
 
-	public static ArrayList<Node> getAllNextNodes(int player){
+	public static ArrayList<Node> getAllNextNodes(int player, int depth){
 
 		ArrayList<Node> allNextNodes = new ArrayList<Node>();
 		String currentCity = null;
 		int currentVal = 0;
 		TreeMap<String, Integer> localConfig = null;
-		boolean isForceMarchPossible = false;
 		Node node = null;
 		for (Entry<String, Integer> e : currentConfig.entrySet()) {
 			if (e.getValue() == 0) {
 				
 				currentCity = e.getKey();
-				localConfig = new TreeMap<String, Integer>();
-				copyTo(localConfig);
-				isForceMarchPossible = doForceMarch(localConfig, currentCity, player);
-				if(isForceMarchPossible){
-					currentVal = getForceMarchVal(currentCity, player);
-					node = new Node(localConfig, currentVal, player, "Force March", currentCity); //TODO: currentNode.turn might be wrong
+				currentVal = getForceMarchVal(currentCity, player);
+				if(currentVal != -Integer.MAX_VALUE){
+					localConfig = new TreeMap<String, Integer>();
+					copyTo(localConfig);
+					doForceMarch(localConfig, currentCity, player);
+					node = new Node(localConfig, Integer.toString(currentVal), "Force March", currentCity, depth+1); //TODO: currentNode.turn might be wrong
 					allNextNodes.add(node);
 				}
-				//Paratroop drop cases;
-				localConfig = new TreeMap<String, Integer>();
-				copyTo(localConfig);
-				localConfig.put(currentCity, player);
-				currentVal = eval(currentConfig, player);
-				node = new Node(localConfig, currentVal, player, "Paratroop Drop", currentCity); //TODO: currentNode.turn might be wrong
-				allNextNodes.add(node);
 			} 
 
 		}
-		
+		for (Entry<String, Integer> e : currentConfig.entrySet()) {
+			if (e.getValue() == 0) {
+				//Paratroop drop cases;
+				localConfig = new TreeMap<String, Integer>();
+				copyTo(localConfig);
+				currentCity = e.getKey();
+				localConfig.put(currentCity, player);
+				currentVal = eval(localConfig, player);
+				node = new Node(localConfig, Integer.toString(currentVal), "Paratroop Drop", currentCity, depth+1); //TODO: currentNode.turn might be wrong
+				allNextNodes.add(node);
+			}
+		}
 		return allNextNodes;
 	}
 
 	
-	public static int currentDepth = 1;
 
 	public static Node MINIMAX_DECISION(){
 		
 		Node nextMove = null;
-		int maxUtility = -1; 
-		int currentUtility = 0;
+		int maxUtility = -Integer.MAX_VALUE; 
+		int currentUtility = Integer.MAX_VALUE;
+		String sCurrentUtility = "Infinity";
 		int player = 1;
 		String action = "N/A";
 		
 		System.out.println("TURN = " + 0);
 		System.out.println("Player = N/A");
-		System.out.println("Action = " + action);
+		System.out.println("Action = N/A");
 		System.out.println("Destination = N/A");
-		System.out.println("Union, " + getCities(UNION) +","+ getStrength(initialConfig, UNION));
-		System.out.println("Confederacy, " + getCities(CONFEDERACY) +","+ getStrength(initialConfig, CONFEDERACY));
+		System.out.println("Union, " + getCities(currentConfig, 1) +","+ getStrength(currentConfig, UNION));
+		System.out.println("Confederacy, " + getCities(currentConfig, -1) +","+ getStrength(currentConfig, CONFEDERACY));
 		System.out.println("----------------------------------------------");
 		
-		for(Node op : getAllNextNodes(player)){
+		//System.out.println("Player,Action,Destination,Depth,Value");
+		//System.out.println("N/A,N/A,N/A,0,-Infinity");
+		Node start = new Node(currentConfig, "Infinity", "N/A", "N/A", 0);
+		
+		for(Node op : getAllNextNodes(player, 0)){
+			System.out.println("N/A,"+start.caused_action+","+start.city+","+start.depth+","+ sCurrentUtility);
+			System.out.println(getPlayerName(player)+","+op.caused_action+","+op.city+","+op.depth+","+currentUtility);
 			currentUtility = MINIMAX_VALUE(op, -1*player);
 			if(maxUtility < currentUtility){
 				nextMove = op;
 				maxUtility = currentUtility;
 			}
 		}
+		System.out.println("TURN = " + nextMove.depth);
+		System.out.println("Player = " + getPlayerName(player));
+		System.out.println("Action = " + nextMove.caused_action);
+		System.out.println("Destination = "+ nextMove.city);
+		System.out.println("Union, " + getCities(nextMove.config, 1) +","+ getStrength(nextMove.config, UNION));
+		System.out.println("Confederacy, " + getCities(nextMove.config, -1) +","+ getStrength(nextMove.config, CONFEDERACY));
+		System.out.println("----------------------------------------------");
+		setCurrentConfig(nextMove.config);
+		int turn = 2;
+		player = -1;
+		while (!isGameEnd(currentConfig)) { //TODO: tie-breaking rules
+			int max = -Integer.MAX_VALUE;
+			String nextCity = null;
+			String city = null;
+			boolean isFM = false;
+			int oldVal = 0;
+			for (Entry<String, Integer> e : currentConfig.entrySet()) {
+				if (e.getValue() == 0) {
+					city = e.getKey();
+					int val = getForceMarchVal(city, player);
+					if (max < val) {
+						max = val;
+						isFM = true;
+						nextCity = city;
+					}
+					
+					oldVal = currentConfig.get(city);
+					currentConfig.put(city, player);
+					val = eval(currentConfig, player);
+					currentConfig.put(city, oldVal);
+					if (max < val) {
+						max = val;
+						isFM = false;
+						nextCity = city;
+					}
+					
+				} 
+
+			}
+			if (!isFM) {
+				currentConfig.put(nextCity, player);
+				action = "Paratroop Drop";
+			} else {
+				doForceMarch(currentConfig, nextCity, player);
+				action = "Force March";
+			}
+			
+			System.out.println("TURN = " + turn);
+			System.out.println("Player = " + getPlayerName(player));
+			System.out.println("Action = " + action);
+			System.out.println("Destination = "+ nextCity);
+			System.out.println("Union, " + getCities(currentConfig, 1) +","+ getStrength(currentConfig, UNION));
+			System.out.println("Confederacy, " + getCities(currentConfig, -1) +","+ getStrength(currentConfig, CONFEDERACY));
+			System.out.println("----------------------------------------------");
+			player *= -1;
+			turn++;
+		}
+		
 		return nextMove;
 	}
 	private static void setCurrentConfig(TreeMap<String, Integer> localConfig){
@@ -367,14 +434,15 @@ public class war {
 	}
 	public static int MINIMAX_VALUE(Node state, int player){
 		
-		int currentVal = 0;
-		if(isTerminal(state) || currentDepth == CUTOFF){
+		System.out.println(getPlayerName(player)+","+state.caused_action+","+state.city+","+state.depth+","+state.minimax_value);
+		int currentVal = player*-1*Integer.MAX_VALUE;
+		if(isTerminal(state) || state.depth == CUTOFF){
 			return eval(state.config, player);
 		}else if(player == 1){
-			int max = -1;
+			setCurrentConfig(state.config);
+			int max = -Integer.MAX_VALUE;
 			Node nextNode = null;
-			currentDepth++;
-			for(Node successor : getAllNextNodes(player)){
+			for(Node successor : getAllNextNodes(player, state.depth)){
 				currentVal = MINIMAX_VALUE(successor, -1*player);
 				if(max < currentVal){
 					max = currentVal;
@@ -382,20 +450,13 @@ public class war {
 				}
 			}
 			setCurrentConfig(nextNode.config);
-			System.out.println("TURN = " + currentDepth);
-			System.out.println("Player = " + getPlayerName(player));
-			System.out.println("Action = " + nextNode.caused_action);
-			System.out.println("Destination = "+ nextNode.city);
-			System.out.println("Union, " + getCities(1) +","+ getStrength(nextNode.config, UNION));
-			System.out.println("Confederacy, " + getCities(-1) +","+ getStrength(nextNode.config, CONFEDERACY));
-			System.out.println("----------------------------------------------");
 			
 			return max;
 		}else{
+			setCurrentConfig(state.config);
 			int min = Integer.MAX_VALUE;
-			currentDepth++;
 			Node nextNode = null;
-			for(Node successor : getAllNextNodes(player)){
+			for(Node successor : getAllNextNodes(player, state.depth)){
 				currentVal = MINIMAX_VALUE(successor, -1*player);
 				if(min > currentVal){
 					min = currentVal;
@@ -404,13 +465,6 @@ public class war {
 				}
 			}
 			setCurrentConfig(nextNode.config);
-			System.out.println("TURN = " + currentDepth);
-			System.out.println("Player = " + getPlayerName(player));
-			System.out.println("Action = " + nextNode.caused_action);
-			System.out.println("Destination = "+ nextNode.city);
-			System.out.println("Union, " + getCities(1) +","+ getStrength(nextNode.config, UNION));
-			System.out.println("Confederacy, " + getCities(-1) +","+ getStrength(nextNode.config, CONFEDERACY));
-			System.out.println("----------------------------------------------");
 			
 			return min;
 		}
